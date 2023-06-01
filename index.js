@@ -56,12 +56,24 @@ async function run() {
     app.post("/jwt", (req, res) => {
       const user = req.body;
       const token = jwt.sign(user, process.env.ACCESS_TOKEN_SECRET, {
-        expiresIn: '1h',
+        expiresIn: "1h",
       });
 
       res.send({ token });
     });
 
+    // verify admin mdleware
+    const verifyAdmin = async (req, res, next) => {
+      const decodedEmail = req.decoded.email;
+      const query = { email: decodedEmail };
+      const user = await usersCollection.findOne(query);
+      if (user.role !== "admin") {
+        return res
+          .status(403)
+          .send({ error: true, message: "forbidden access" });
+      }
+      next();
+    };
 
     // users related APIs
     app.get("/users", async (req, res) => {
@@ -82,7 +94,7 @@ async function run() {
       res.send(result);
     });
 
-    //make users admin 
+    //make users admin
     app.patch("/users/admin/:id", async (req, res) => {
       const id = req.params.id;
       const filter = { _id: new ObjectId(id) };
@@ -95,18 +107,31 @@ async function run() {
       res.send(result);
     });
 
-    app.get('/users/admin/:email', async(req, res)=>{
+    app.get("/users/admin/:email", verifyJWT, async (req, res) => {
       const email = req.params.email;
-      const query = {email: email}
+      const decodedEmail = req.decoded.email;
+
+      if (email !== decodedEmail) {
+        res.send({ admin: false });
+      }
+
+      const query = { email: email };
       const user = await usersCollection.findOne(query);
-      const result = {admin: user?.role === 'admin'}
-      res.send(result)
-    })
+      const result = { admin: user?.role === "admin" };
+      res.send(result);
+    });
 
-
+    // menu related api
     // get all menu
     app.get("/menu", async (req, res) => {
       const result = await menuCollection.find().toArray();
+      res.send(result);
+    });
+    // add a item on menu
+    app.post("/menu",verifyJWT, verifyAdmin, async (req, res) => {
+      const body = req.body;
+      console.log(body);
+      const result = await menuCollection.insertOne(body);
       res.send(result);
     });
 
@@ -114,8 +139,10 @@ async function run() {
     app.get("/carts", verifyJWT, async (req, res) => {
       const email = req.query.email;
       const decodedEmail = req.decoded.email;
-      if(email !== decodedEmail){
-        return res.status(403).send({ error: true, message: "forbidden access" });
+      if (email !== decodedEmail) {
+        return res
+          .status(403)
+          .send({ error: true, message: "forbidden access" });
       }
 
       if (!email) {

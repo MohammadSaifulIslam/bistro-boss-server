@@ -128,10 +128,17 @@ async function run() {
       res.send(result);
     });
     // add a item on menu
-    app.post("/menu",verifyJWT, verifyAdmin, async (req, res) => {
+    app.post("/menu", verifyJWT, verifyAdmin, async (req, res) => {
       const body = req.body;
       console.log(body);
       const result = await menuCollection.insertOne(body);
+      res.send(result);
+    });
+    // delete an item from menu
+    app.delete("/menu/:id",verifyJWT,verifyAdmin, async (req, res) => {
+      const id = req.params.id;
+      const query = { _id: new ObjectId(id) };
+      const result = await menuCollection.deleteOne(query);
       res.send(result);
     });
 

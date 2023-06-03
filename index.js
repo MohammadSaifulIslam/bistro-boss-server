@@ -2,6 +2,8 @@ const express = require("express");
 const cors = require("cors");
 const jwt = require("jsonwebtoken");
 require("dotenv").config();
+const stripe = require("stripe")(process.env.STIPE_SECRET_KEY);
+
 
 const port = process.env.PORT || 5000;
 const app = express();
@@ -135,7 +137,7 @@ async function run() {
       res.send(result);
     });
     // delete an item from menu
-    app.delete("/menu/:id",verifyJWT,verifyAdmin, async (req, res) => {
+    app.delete("/menu/:id", verifyJWT,verifyAdmin, async (req, res) => {
       const id = req.params.id;
       const query = { _id: new ObjectId(id) };
       const result = await menuCollection.deleteOne(query);
@@ -165,7 +167,6 @@ async function run() {
       const result = await cartCollection.insertOne(body);
       res.send(result);
     });
-
     // delete cart item
     app.delete("/carts/:id", async (req, res) => {
       const id = req.params.id;
@@ -174,6 +175,22 @@ async function run() {
       const result = await cartCollection.deleteOne(query);
       res.send(result);
     });
+
+
+    app.post("/create-payment-intent",verifyJWT, async ( req, res)=>{
+      const {price} = req.body;
+      const amount = price * 100;
+      console.log(amount)
+      const paymentIntent = await stripe.paymentIntents.create({
+        amount: amount,
+        currency: "usd",
+        payment_method_types: ["card"]
+      });
+
+      res.send({
+        clientSecret: paymentIntent.client_secret,
+      });
+    })
 
     // Send a ping to confirm a successful connection
     await client.db("admin").command({ ping: 1 });
